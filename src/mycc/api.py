@@ -86,31 +86,43 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC
 
 /* ---- sidebar ---- */
 .sidebar {
-  width:280px; min-width:280px; background:#1a1a2e; color:#ccd0e0;
+  width:280px; min-width:280px; background:#15162a; color:#b8bdd0;
   display:flex; flex-direction:column; overflow:hidden;
-  box-shadow: 2px 0 12px rgba(0,0,0,.06);
+  box-shadow: 2px 0 24px rgba(0,0,0,.15);
 }
 .sidebar-header {
-  padding:24px 20px 16px; border-bottom:1px solid rgba(255,255,255,.08);
+  padding:28px 22px 20px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  background: linear-gradient(180deg, rgba(124,140,248,.08) 0%, transparent 100%);
 }
-.sidebar-header h1 { font-size:17px; color:#fff; font-weight:600; letter-spacing:.3px; }
-.sidebar-header p { font-size:12px; color:#7c8099; margin-top:6px; }
-.note-list { flex:1; overflow-y:auto; padding:12px 0; }
+.sidebar-header h1 {
+  font-size: 16px; color: #fff; font-weight:600;
+  display:flex; align-items:center; gap: 10px;
+}
+.sidebar-header h1 .dot {
+  width:8px; height:8px; border-radius:50%; background:#7c8cf8;
+  box-shadow: 0 0 8px rgba(124,140,248,.5);
+}
+.sidebar-header p {
+  font-size:12px; color:#64688a; margin-top:8px; margin-left:18px;
+}
+.note-list { flex:1; overflow-y:auto; padding:8px 0; }
 .note-folder {
-  font-size:11px; color:#5a5d7a; padding:14px 20px 6px;
-  text-transform:uppercase; letter-spacing:.6px; font-weight:600;
+  font-size: 10.5px; color: #4e5070; padding: 16px 22px 6px;
+  text-transform: uppercase; letter-spacing: .8px; font-weight: 700;
+  display: flex; align-items: center; gap: 6px;
 }
 .note-item {
-  display:flex; align-items:center; gap:8px; padding:11px 20px; cursor:pointer;
-  font-size:13.5px; color:#9da0b8; text-decoration:none; border-left:3px solid transparent;
-  transition:all .18s; position:relative;
+  display:flex; align-items:center; gap:8px;
+  margin: 1px 10px; padding: 10px 12px; border-radius: 8px;
+  cursor:pointer; font-size:13.5px; color:#9498b8; text-decoration:none;
+  transition:all .15s;
 }
-.note-item:hover { background:#22223a; color:#d5d8ee; border-left-color:#56577a; }
+.note-item:hover { background: rgba(255,255,255,.04); color:#ccd0e8; }
 .note-item.active {
-  background:#22223a; color:#fff; border-left-color:#7c8cf8;
+  background: rgba(124,140,248,.12); color:#ccd4ff;
   font-weight:500;
 }
-.note-folder:first-child { padding-top:2px; }
 
 /* ---- main area ---- */
 .main { flex:1; display:flex; flex-direction:column; overflow:hidden; background:#fff; }
@@ -186,7 +198,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC
 <body>
 <div class="sidebar">
   <div class="sidebar-header">
-    <h1>📖 我的知识库</h1>
+    <h1><span class="dot"></span>我的知识库</h1>
     <p id="note-count"></p>
   </div>
   <div class="note-list" id="note-list"></div>
@@ -236,24 +248,24 @@ function renderNoteList(noteList) {
 }
 
 function parseFrontmatter(md) {
-  const m = md.match(/^---[ \t]*\n([\\s\\S]*?)\n---[ \t]*\n?([\\s\\S]*)$/);
-  if (!m) return { meta:{}, body:md };
-  const yaml = m[1];
-  const body = m[2];
+  const parts = md.split('---');
+  if (parts.length < 3 || !md.startsWith('---')) return { meta:{}, body:md };
+  const yaml = parts[1];
+  const body = parts.slice(2).join('---');
   const meta = {};
-  for (const line of yaml.split('\n')) {
+  for (const line of yaml.split('\\n')) {
     const idx = line.indexOf(':');
     if (idx > 0) {
       let key = line.substring(0, idx).trim();
       let val = line.substring(idx+1).trim();
       if (val.startsWith('[') && val.endsWith(']')) {
-        meta[key] = val.slice(1,-1).split(',').map(s=>s.trim().replace(/^['\"]|['\"]$/g,''));
+        meta[key] = val.slice(1,-1).split(',').map(function(s){return s.trim().replace(/^['\"]|['\"]$/g,'')});
       } else {
         meta[key] = val.replace(/^['\"]|['\"]$/g,'');
       }
     }
   }
-  return { meta, body };
+  return { meta: meta, body: body };
 }
 
 function renderMetaHeader(meta) {
