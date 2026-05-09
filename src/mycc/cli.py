@@ -1,5 +1,5 @@
 """CLI entry point."""
-import subprocess
+import re
 import sys
 from pathlib import Path
 
@@ -14,6 +14,11 @@ from .sync import init, status, sync
 
 app = typer.Typer(name="kb", help="AI-first personal knowledge base")
 console = Console()
+
+
+def _safe(text: str) -> str:
+    """Remove emoji and non-BMP chars that legacy Windows terminals can't handle."""
+    return text.encode("gbk", errors="replace").decode("gbk")
 
 
 @app.command()
@@ -59,7 +64,7 @@ def query(
         console.print("[yellow]No results found.[/yellow]")
         return
 
-    table = Table(title=f"Results for: {q}")
+    table = Table(title=f"Results for: {_safe(q)}")
     table.add_column("#", style="dim", width=3)
     table.add_column("Score", style="green", width=8)
     table.add_column("Title", style="bold")
@@ -67,12 +72,12 @@ def query(
     table.add_column("Preview", max_width=60)
 
     for i, r in enumerate(results, 1):
-        preview = r["content"].replace("\n", " ")[:80]
+        preview = _safe(r["content"].replace("\n", " ")[:80])
         table.add_row(
             str(i),
             f"{r['score']:.3f}",
-            r["title"],
-            r["file"],
+            _safe(r["title"]),
+            _safe(r["file"]),
             preview,
         )
 
