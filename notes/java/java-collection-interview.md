@@ -1,4 +1,10 @@
 ---
+title: Java集合常见面试题总结
+tags: [java, collection, interview, list, set, map, queue, hashmap, arraylist]
+created: 2026-05-09
+source: https://interview.javaguide.cn/java/java-collection.html
+---
+
 ## 前言
 这是 **JavaGuide 面试突击版本**，只保留最常问的面试题，并对重点内容进行了 ⭐️ 标注。提供亮色和暗色两个主题，需要打印的朋友请选择亮色版本。
 时间充裕的朋友，推荐使用 JavaGuide 网站系统学习，内容更全面深入。

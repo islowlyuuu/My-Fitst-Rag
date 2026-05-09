@@ -163,6 +163,24 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC
 .result-item .r-meta { font-size:12px; color:#aaa; margin-bottom:8px; }
 .result-item .r-preview { font-size:13.5px; color:#666; line-height:1.6; }
 .loading { display:flex; align-items:center; justify-content:center; height:100%; color:#bbb; }
+
+/* ---- meta header ---- */
+.meta-header {
+  background: linear-gradient(135deg, #f8f7ff 0%, #f0f4ff 100%);
+  border: 1px solid #e8e4f8; border-radius: 12px;
+  padding: 28px 32px; margin-bottom: 0;
+}
+.meta-title { font-size: 24px; font-weight: 700; color: #1a1a2e; margin: 0 0 14px 0; max-width: none; }
+.meta-info { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+.meta-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.meta-tag {
+  display: inline-block; background: #e8e0f8; color: #5b3e9e; font-size: 12px;
+  padding: 3px 10px; border-radius: 14px; font-weight: 500;
+}
+.meta-extra { display: flex; gap: 16px; font-size: 13px; color: #888; }
+.meta-extra a { color: #7c8cf8; text-decoration: none; font-weight: 500; }
+.meta-extra a:hover { text-decoration: underline; }
+.meta-divider { max-width: 780px; margin: 0 auto 32px; border-bottom: 2px solid #eee; }
 </style>
 </head>
 <body>
@@ -211,10 +229,51 @@ function renderNoteList(noteList) {
   for (const [dir, items] of Object.entries(groups)) {
     if (dir) html += '<div class="note-folder">📁 ' + dir + '</div>';
     for (const n of items) {
-      html += '<a class="note-item" href="#" data-path="' + n.path + '" onclick="loadNote(event,\\''+n.path+'\\')"><span style="font-size:14px">📄</span> ' + n.name + '</a>';
+      html += '<a class="note-item" href="#" data-path="' + n.path + '" onclick="loadNote(event,\\''+n.path+'\\')"><span style="font-size:14px">📄</span> ' + (n.title || n.name) + '</a>';
     }
   }
   container.innerHTML = html;
+}
+
+function parseFrontmatter(md) {
+  const m = md.match(/^---[ \t]*\n([\\s\\S]*?)\n---[ \t]*\n?([\\s\\S]*)$/);
+  if (!m) return { meta:{}, body:md };
+  const yaml = m[1];
+  const body = m[2];
+  const meta = {};
+  for (const line of yaml.split('\n')) {
+    const idx = line.indexOf(':');
+    if (idx > 0) {
+      let key = line.substring(0, idx).trim();
+      let val = line.substring(idx+1).trim();
+      if (val.startsWith('[') && val.endsWith(']')) {
+        meta[key] = val.slice(1,-1).split(',').map(s=>s.trim().replace(/^['\"]|['\"]$/g,''));
+      } else {
+        meta[key] = val.replace(/^['\"]|['\"]$/g,'');
+      }
+    }
+  }
+  return { meta, body };
+}
+
+function renderMetaHeader(meta) {
+  let h = '<div class="meta-header">';
+  if (meta.title) h += '<h1 class="meta-title">' + meta.title + '</h1>';
+  h += '<div class="meta-info">';
+  if (meta.tags && meta.tags.length) {
+    h += '<div class="meta-tags">';
+    for (const t of meta.tags) {
+      h += '<span class="meta-tag">#' + t + '</span>';
+    }
+    h += '</div>';
+  }
+  h += '<div class="meta-extra">';
+  if (meta.created) h += '<span>📅 ' + meta.created + '</span>';
+  if (meta.source) h += '<span>🔗 <a href="' + meta.source + '" target="_blank">来源</a></span>';
+  h += '</div>';
+  h += '</div>';
+  h += '</div>';
+  return h;
 }
 
 function loadNote(e, path) {
@@ -227,7 +286,8 @@ function loadNote(e, path) {
   fetch('/notes/' + path)
     .then(r => r.json())
     .then(data => {
-      document.getElementById('content-area').innerHTML = marked.parse(data.content);
+      const { meta, body } = parseFrontmatter(data.content);
+      document.getElementById('content-area').innerHTML = renderMetaHeader(meta) + '<div class="meta-divider"></div>' + marked.parse(body);
     });
 }
 
@@ -272,9 +332,9 @@ function openNote(path) {
   fetch('/notes/' + path)
     .then(r => r.json())
     .then(data => {
-      document.getElementById('content-area').innerHTML = marked.parse(data.content);
+      const { meta, body } = parseFrontmatter(data.content);
+      document.getElementById('content-area').innerHTML = renderMetaHeader(meta) + '<div class="meta-divider"></div>' + marked.parse(body);
       document.getElementById('search-input').value = '';
-      // Highlight sidebar
       document.querySelectorAll('.note-item').forEach(el => {
         el.classList.remove('active');
         if (el.dataset.path === path) el.classList.add('active');
@@ -344,16 +404,18 @@ def create_app() -> FastAPI:
     @app.get("/notes", tags=["笔记"], summary="列出所有笔记")
     def list_notes():
         """获取知识库中所有笔记的列表"""
+        import frontmatter as fm
         files = get_markdown_files()
-        return {
-            "notes": [
-                {
-                    "path": str(f.relative_to(NOTES_DIR)).replace("\\", "/"),
-                    "name": f.stem,
-                }
-                for f in files
-            ]
-        }
+        result = []
+        for f in files:
+            post = fm.load(str(f))
+            title = post.get("title", f.stem)
+            result.append({
+                "path": str(f.relative_to(NOTES_DIR)).replace("\\", "/"),
+                "name": f.stem,
+                "title": title,
+            })
+        return {"notes": result}
 
     @app.get("/notes/{path:path}", tags=["笔记"], summary="查看笔记内容")
     def get_note(path: str):
